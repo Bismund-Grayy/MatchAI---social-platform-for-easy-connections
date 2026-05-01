@@ -10,21 +10,17 @@ import Profile from "./profile";
 import ProfileSetup from "./profile-setup";
 import { supabase } from "../../../../utils/supabase";
 
-//Here is the main page/hub for users
-
 type ActiveView = 'feed' | 'profile' | 'friends' | 'messages' | 'chat' | 'setup';
 
 export default function Main() {
-  // state to track which view is currently active in the main hub
   const [activeView, setActiveView] = useState<ActiveView>('feed');
   const [user, setUser] = useState<any>(null);
   const [isProfileComplete, setIsProfileComplete] = useState<boolean | null>(null);
+  const [selectedChatFriend, setSelectedChatFriend] = useState<any>(null);
 
   useEffect(() => {
-    // 1. Create the channel synchronously
     const channel = supabase.channel('online-users');
 
-    // 2. Setup listeners and subscribe synchronously
     channel
       .on('presence', { event: 'sync' }, () => {
         console.log('Online users synced:', channel.presenceState());
@@ -33,13 +29,11 @@ export default function Main() {
         if (status === 'SUBSCRIBED') {
           const { data: { user: currentUser } } = await supabase.auth.getUser();
           if (currentUser) {
-            // Mark user as online in the real-time channel
             await channel.track({
               online_at: new Date().toISOString(),
               user_id: currentUser.id,
             });
 
-            // Also update the 'last_seen_at' in the database
             await supabase
               .from('profiles')
               .update({ last_seen_at: new Date().toISOString() })
@@ -49,41 +43,51 @@ export default function Main() {
       });
 
     const getUser = async () => {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      setUser(currentUser);
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        setUser(currentUser);
 
-      if (currentUser) {
-        // Check if user has completed their profile setup
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('is_profile_complete')
-          .eq('id', currentUser.id)
-          .single();
-        
-        if (profile && !profile.is_profile_complete) {
-          setActiveView('setup');
-          setIsProfileComplete(false);
-        } else {
-          setIsProfileComplete(true);
+        if (currentUser) {
+          // Check if user has completed their profile setup
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('is_profile_complete')
+            .eq('id', currentUser.id)
+            .single();
+          
+          if (profileError) throw profileError;
+
+          if (profile && !profile.is_profile_complete) {
+            setActiveView('setup');
+            setIsProfileComplete(false);
+          } else {
+            setIsProfileComplete(true);
+          }
         }
+      } catch (error: any) {
+        console.error("Error fetching user or profile:", error.message);
+        // Fallback or error handling
+        setIsProfileComplete(true); // Allow entry but might have missing data
       }
     };
 
     getUser();
 
-    // 3. Cleanup: Use removeChannel for a more thorough cleanup
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
 
-  // helper function to render the appropriate component based on state
   const renderContent = () => {
     if (activeView === 'setup') {
-      return <ProfileSetup onComplete={() => {
-        setIsProfileComplete(true);
-        setActiveView('feed');
-      }} />;
+      return (
+        <ProfileSetup
+          onComplete={() => {
+            setIsProfileComplete(true);
+            setActiveView('feed');
+          }}
+        />
+      );
     }
 
     switch (activeView) {
@@ -92,53 +96,85 @@ export default function Main() {
       case 'profile':
         return <Profile />;
       case 'friends':
-        return <FriendList />;
+        return (
+          <FriendList
+            onChat={(friend) => {
+              setSelectedChatFriend(friend);
+              setActiveView('chat');
+            }}
+          />
+        );
       case 'messages':
         return <MessageRequest />;
       case 'chat':
-        return <ChatInterface />;
+        return (
+          <ChatInterface
+            friend={selectedChatFriend}
+            onBack={() => setActiveView('friends')}
+          />
+        );
       default:
         return <Feed />;
     }
   };
 
-  // dynamic styling for sidebar navigation items based on active status
-  const navItemStyle = (view: ActiveView) => ({
-    padding: '0.5rem 0',
-    cursor: 'pointer',
-    color: activeView === view ? '#007bff' : 'inherit',
-    fontWeight: activeView === view ? 'bold' : 'normal',
-    listStyleType: 'none',
-  });
+  const navItemClass = (view: ActiveView) =>
+    `px-3 py-2 rounded-lg cursor-pointer transition ${
+      activeView === view
+        ? "bg-indigo-100 text-indigo-600 font-semibold"
+        : "hover:bg-gray-100 text-gray-600"
+    }`;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <header style={{ padding: '1rem', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>MatchAI User Hub</h1>
-        {/* Sign out functionality provided by the Logout component */}
+    <div className="h-screen flex flex-col bg-gray-100">
+
+      {/* 🔝 Header */}
+      <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
+        <h1 className="text-xl font-bold text-indigo-600">
+          MatchAI
+        </h1>
         <Logout />
       </header>
-      
-      <div style={{ display: 'flex', flex: 1 }}>
-        {/* Navigation sidebar for the User Hub - Hidden during setup */}
+
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* 📌 Sidebar */}
         {isProfileComplete && (
-          <nav style={{ width: '200px', borderRight: '1px solid #ccc', padding: '1rem' }}>
-            <h3>Navigation</h3>
-            <ul style={{ padding: 0 }}>
-              {/* Click handlers to update the active view */}
-              <li style={navItemStyle('feed')} onClick={() => setActiveView('feed')}>Feed</li>
-              <li style={navItemStyle('profile')} onClick={() => setActiveView('profile')}>Profile</li>
-              <li style={navItemStyle('friends')} onClick={() => setActiveView('friends')}>Friends</li>
-              <li style={navItemStyle('messages')} onClick={() => setActiveView('messages')}>Message Requests</li>
-              <li style={navItemStyle('chat')} onClick={() => setActiveView('chat')}>Chat</li>
+          <aside className="w-64 bg-white border-r p-4 hidden md:block">
+            <h3 className="text-sm font-semibold text-gray-400 mb-4">
+              Navigation
+            </h3>
+
+            <ul className="space-y-2">
+              <li className={navItemClass('feed')} onClick={() => setActiveView('feed')}>
+                Feed
+              </li>
+              <li className={navItemClass('profile')} onClick={() => setActiveView('profile')}>
+                Profile
+              </li>
+              <li className={navItemClass('friends')} onClick={() => setActiveView('friends')}>
+                Friends
+              </li>
+              <li className={navItemClass('messages')} onClick={() => setActiveView('messages')}>
+                Requests
+              </li>
             </ul>
-          </nav>
+          </aside>
         )}
 
-        {/* Primary content area where components are rendered */}
-        <main style={{ flex: 1, padding: '1rem' }}>
-          {isProfileComplete === null ? <p>Loading profile...</p> : renderContent()}
+        {/* 📄 Main Content */}
+        <main className="flex-1 p-6 overflow-y-auto">
+          {isProfileComplete === null ? (
+            <div className="text-center text-gray-500">
+              Loading profile...
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-sm p-6 min-h-full">
+              {renderContent()}
+            </div>
+          )}
         </main>
+
       </div>
     </div>
   );

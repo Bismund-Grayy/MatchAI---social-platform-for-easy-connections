@@ -1,58 +1,50 @@
-import Image from "next/image";
 import Display from "./display/display";
 import Link from "next/link";
 
-
-/*
-I followed the recommendations from supabase
-
-import { useState, useEffect } from 'react'
-import { supabase } from '../utils/supabase'
-
-export default function Page() {
-  const [todos, setTodos] = useState([])
-
-  useEffect(() => {
-    async function getTodos() {
-      const { data: todos } = await supabase.from('todos').select()
-
-      if (todos) {
-        setTodos(todos)
-      }
-    }
-
-    getTodos()
-  }, [])
-
-  return (
-    <ul>
-      {todos.map((todo) => (
-        <li key={todo.id}>{todo.name}</li>
-      ))}
-    </ul>
-  )
-}*/
-
 export default function Home() {
-  // This is the landing page of the application.
-  // It displays the welcome message, the main Display component,
-  // and navigation links to the user authentication pages.
   return (
-    <main>
-      { /* Home/Front page*/ }
-      <h1>Welcome to MatchAI!</h1>
-        <Display />
-        <footer>
-          <p>Contact us: support@matchai.com</p>
-          <a href="https://youtube.com">YouTube</a>
-          <a href="https://facebook.com">Facebook</a>
+    <main className="min-h-screen flex items-center justify-center bg-gray-100">
+      
+      {/* Card Container */}
+      <div className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md">
+        
+        {/* Title */}
+        <h1 className="text-3xl font-bold text-center text-indigo-600 mb-2">
+          MatchAI
+        </h1>
+        <p className="text-center text-gray-500 mb-6">
+          Find meaningful matches with AI
+        </p>
+
+        {/* Optional Display Component */}
+        <div className="mb-6">
+          <Display />
+        </div>
+
+        {/* Login/Register Button */}
+        <Link href="/users">
+          <button className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-2 rounded-xl transition">
+            Login / Register
+          </button>
+        </Link>
+
+        {/* Admin (small + subtle) */}
+        <div className="text-center mt-4">
+          <Link href="/admin" className="text-xs text-gray-400 hover:underline">
+            Admin Access
+          </Link>
+        </div>
+
+        {/* Footer */}
+        <footer className="mt-6 text-center text-xs text-gray-400">
+          <p>support@matchai.com</p>
+          <div className="flex justify-center gap-4 mt-2">
+            <a href="https://youtube.com" className="hover:underline">YouTube</a>
+            <a href="https://facebook.com" className="hover:underline">Facebook</a>
+          </div>
         </footer>
-        <nav>
-          {/* Link to the Login/Registration page */}
-          <Link href="/users">Login/Register</Link>
-        </nav>
-        {/* Link to the Admin page (for admin users) temporary, just for development*/}
-        <Link href="/admin">Admin</Link>
+
+      </div>
     </main>
   );
 }

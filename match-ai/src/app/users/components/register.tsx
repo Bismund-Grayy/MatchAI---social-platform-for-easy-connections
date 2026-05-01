@@ -1,105 +1,177 @@
 import React, { useState } from "react";
 import Link from "next/link";
-import { supabase } from "../../../../utils/supabase";
+import { supabase, logActivity } from "../../../../utils/supabase";
 
 interface RegisterProps {
   onSwitch: () => void;
 }
 
 const RegisterComponent: React.FC<RegisterProps> = ({ onSwitch }) => {
-  // Input field and messaging state management
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [form, setForm] = useState({
+    email: "",
+    username: "",
+    password: "",
+    confirmPassword: "",
+  });
 
-  // Function to handle registration process using Supabase
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.id]: e.target.value });
+  };
+
+  const validateForm = () => {
+    const { email, username, password, confirmPassword } = form;
+
+    if (!email || !username || !password || !confirmPassword) {
+      return "All fields are required";
+    }
+    if (username.length < 3) return "Username must be at least 3 characters";
+    if (password.length < 6) return "Password must be at least 6 characters";
+    if (password !== confirmPassword) return "Passwords do not match";
+
+    return null;
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setMessage(null);
 
-    // Call Supabase auth sign-up method with username in metadata
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          username: username,
-        }
-      }
-    });
-
-    if (signUpError) {
-      // Display error if registration fails
-      setMessage({ type: "error", text: signUpError.message });
-      setLoading(false);
+    const validationError = validateForm();
+    if (validationError) {
+      setMessage({ type: "error", text: validationError });
       return;
     }
 
-    // Success: The profile is now created automatically by the database trigger!
-    setMessage({ 
-      type: "success", 
-      text: "Account created! Please check your email to verify your account before logging in." 
-    });
-    
-    // With email confirmation ON, the user is NOT signed in immediately.
-    // They must verify their email first.
-    setLoading(false);
+    setLoading(true);
+
+    try {
+      const { email, username, password } = form;
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { username } },
+      });
+
+      if (error) throw new Error(error.message);
+
+      setMessage({
+        type: "success",
+        text: "Account created! Check your email to verify.",
+      });
+
+      setForm({
+        email: "",
+        username: "",
+        password: "",
+        confirmPassword: "",
+      });
+
+    } catch (err: any) {
+      setMessage({
+        type: "error",
+        text: err.message || "Something went wrong.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <section>
-      <h2>Register</h2>
-      {message && (
-        <p style={{ color: message.type === "success" ? "green" : "red" }}>
-          {message.text}
+    <main className="min-h-screen flex items-center justify-center bg-gray-100">
+      <section className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md">
+
+        <h2 className="text-2xl font-bold text-center text-indigo-600 mb-2">
+          Register
+        </h2>
+        <p className="text-center text-gray-500 mb-6">
+          Create your MatchAI account
         </p>
-      )}
-      <form onSubmit={handleRegister}>
-        <div>
-          <label htmlFor="reg-username">Username:</label>
+
+        {message && (
+          <p
+            className={`text-sm p-2 rounded mb-4 text-center ${
+              message.type === "success"
+                ? "bg-green-100 text-green-600"
+                : "bg-red-100 text-red-600"
+            }`}
+          >
+            {message.text}
+          </p>
+        )}
+
+        <form onSubmit={handleRegister} className="space-y-4">
+
           <input
+            id="username"
             type="text"
-            id="reg-username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
+            placeholder="Username"
+            value={form.username}
+            onChange={handleChange}
+            disabled={loading}
+            className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-400"
           />
-        </div>
-        <div>
-          <label htmlFor="reg-email">Email:</label>
+
           <input
+            id="email"
             type="email"
-            id="reg-email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
+            placeholder="Email"
+            value={form.email}
+            onChange={handleChange}
+            disabled={loading}
+            className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-400"
           />
-        </div>
-        <div>
-          <label htmlFor="reg-password">Password:</label>
+
           <input
+            id="password"
             type="password"
-            id="reg-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
+            placeholder="Password"
+            value={form.password}
+            onChange={handleChange}
+            disabled={loading}
+            className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-400"
           />
+
+          <input
+            id="confirmPassword"
+            type="password"
+            placeholder="Confirm Password"
+            value={form.confirmPassword}
+            onChange={handleChange}
+            disabled={loading}
+            className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-400"
+          />
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-2 rounded-xl transition"
+          >
+            {loading ? "Registering..." : "Register"}
+          </button>
+        </form>
+
+        <div className="text-center mt-4 text-sm text-gray-500">
+          <Link href="/" className="hover:underline block mb-2">
+            Back to main page
+          </Link>
+
+          Already have an account?{" "}
+          <button
+            onClick={onSwitch}
+            className="text-indigo-600 hover:underline"
+          >
+            Login
+          </button>
         </div>
-        {/* Add confirm password field */}
-        <button type="submit" disabled={loading}>
-          {loading ? "Registering..." : "Register"}
-        </button>
-      </form>
-      <p>
-        <Link href="/">back to main page</Link>
-        <br />
-        {/* Switch back to the Login form */}
-        Already have an account? <button onClick={onSwitch} style={{ background: 'none', border: 'none', color: 'blue', textDecoration: 'underline', cursor: 'pointer' }}>Login</button>
-      </p>
-    </section>
+
+      </section>
+    </main>
   );
 };
 

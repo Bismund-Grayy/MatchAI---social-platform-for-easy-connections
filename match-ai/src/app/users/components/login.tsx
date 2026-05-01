@@ -1,6 +1,6 @@
 import Link from "next/link";
 import React, { useState } from "react";
-import { supabase } from "../../../../utils/supabase";
+import { supabase, logActivity } from "../../../../utils/supabase";
 
 interface LoginProps {
   onSwitch: () => void;
@@ -8,71 +8,98 @@ interface LoginProps {
 }
 
 const LoginComponent: React.FC<LoginProps> = ({ onSwitch, onLogin }) => {
-  // Input field state management
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Function to handle form submission for logging in via Supabase
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    // Call Supabase auth sign-in method
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      // Display error message if authentication fails
       setError(error.message);
       setLoading(false);
     } else {
-      // Success: Call parent handler to switch to Main view
+      if (data.user) {
+        await logActivity(data.user.id, "login", { email });
+      }
       onLogin();
     }
   };
 
   return (
-    <section>
-      <h2>Login</h2>
-      {/* Login form with email and password fields */}
-      <form onSubmit={handleLogin}>
-        {error && <p style={{ color: "red" }}>{error}</p>}
-        <div>
-          <label htmlFor="email">Email:</label>
-          <input
-            type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+    <main className="min-h-screen flex items-center justify-center bg-gray-100">
+      <section className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md">
+
+        <h2 className="text-2xl font-bold text-center text-indigo-600 mb-2">
+          Login
+        </h2>
+        <p className="text-center text-gray-500 mb-6">
+          Welcome back to MatchAI
+        </p>
+
+        {error && (
+          <p className="bg-red-100 text-red-600 text-sm p-2 rounded mb-4 text-center">
+            {error}
+          </p>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-4">
+
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-2 rounded-xl transition"
+          >
+            {loading ? "Logging in..." : "Login"}
+          </button>
+        </form>
+
+        <div className="text-center mt-4 text-sm text-gray-500">
+          <Link href="/" className="hover:underline block mb-2">
+            Back to main page
+          </Link>
+
+          Don’t have an account?{" "}
+          <button
+            onClick={onSwitch}
+            className="text-indigo-600 hover:underline"
+          >
+            Register
+          </button>
         </div>
-        <div>
-          <label htmlFor="password">Password:</label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <button type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
-      </form>
-      <p>
-        <Link href="/">back to main page</Link>
-        <br />
-        {/* Switch to the Registration form */}
-        Don't have an account? <button onClick={onSwitch} style={{ background: 'none', border: 'none', color: 'blue', textDecoration: 'underline', cursor: 'pointer' }}>Register</button>
-      </p>
-    </section>
+
+      </section>
+    </main>
   );
 };
 

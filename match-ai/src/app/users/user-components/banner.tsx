@@ -4,8 +4,9 @@ import React from "react";
 // It can be used to display announcements or branded imagery.
 const Banner = () => {
   return (
-    <div style={{ padding: '1rem', backgroundColor: '#f0f0f0', textAlign: 'center', marginBottom: '1rem' }}>
-      <h2>Welcome to your MatchAI Hub!</h2>
+    <div style={{ padding: '1.5rem', backgroundColor: '#eef2ff', textAlign: 'center', marginBottom: '1.5rem', borderRadius: '12px', border: '1px solid #c7d2fe' }}>
+      <h2 style={{ color: '#4f46e5', margin: 0 }}>Welcome to your MatchAI Hub!</h2>
+      <p style={{ color: '#6366f1', marginTop: '0.5rem', fontSize: '0.9rem' }}>Connecting hearts with AI precision.</p>
     </div>
   );
 };
